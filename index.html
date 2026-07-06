@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ナイター集計表</title>
+<meta name="description" content="チームのナイター参加状況を記録・集計するアプリ">
+<meta property="og:title" content="⚾ ナイター集計表">
+<meta property="og:description" content="チームのナイター参加状況を記録・集計するアプリ">
+<meta property="og:type" content="website">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ナイター">
+<meta name="theme-color" content="#0d1b2a">
+<link rel="apple-touch-icon" id="appleIcon" href="">
+<script>
+// ===== PWA アイコン生成 =====
+const ICON_KEY = 'nighter_pwa_icon_v1';
+
+function getIconEmoji() {
+  try { return localStorage.getItem(ICON_KEY) || '⚾'; } catch(e) { return '⚾'; }
+}
+
+function saveIconEmoji(e) {
+  try { localStorage.setItem(ICON_KEY, e); } catch(_) {}
+}
+
+function buildIconDataUrl(emoji, size) {
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0d1b2a';
+    const r = size * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(r, 0); ctx.lineTo(size - r, 0);
+    ctx.quadraticCurveTo(size, 0, size, r);
+    ctx.lineTo(size, size - r);
+    ctx.quadraticCurveTo(size, size, size - r, size);
+    ctx.lineTo(r, size);
+    ctx.quadraticCurveTo(0, size, 0, size - r);
+    ctx.lineTo(0, r);
+    ctx.quadraticCurveTo(0, 0, r, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = `${size * 0.58}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, size / 2, size / 2 + size * 0.03);
+    return canvas.toDataURL('image/png');
+  } catch(e) { return ''; }
+}
+
+function applyIcon(emoji) {
+  try {
+    const url180 = buildIconDataUrl(emoji, 180);
+    if (url180) document.getElementById('appleIcon').href = url180;
+  } catch(e) {}
+}
+
+// 初期適用
+document.addEventListener('DOMContentLoaded', () => applyIcon(getIconEmoji()));
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@400;500;700;900&family=Oswald:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --navy-2: #1b2a3e;
+    --cream: #f5efe0;
+    --paper: #ede4cc;
+    --red: #c8372d;
+    --red-dark: #9c2820;
+    --yellow: #f4c430;
+    --green: #2d7a3e;
+    --line: #d4c9a8;
+    --shadow: rgba(13, 27, 42, 0.12);
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--cream);
+    font-family: 'Noto Sans JP', sans-serif;
+    color: var(--navy);
+    overscroll-behavior: none;
+    min-height: 100vh;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 20% 10%, rgba(200, 55, 45, 0.04) 0%, transparent 40%),
+      radial-gradient(circle at 80% 90%, rgba(13, 27, 42, 0.05) 0%, transparent 40%),
+      var(--cream);
+    background-attachment: fixed;
+  }
+
+  /* Header */
+  .header {
+    background: var(--navy);
+    color: var(--cream);
+    padding: 18px 18px 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px var(--shadow);
+    border-bottom: 3px solid var(--red);
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+
+  .ball-icon {
+    width: 26px;
+    height: 26px;
+    background: var(--cream);
+    border-radius: 50%;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: inset -3px -3px 0 rgba(0,0,0,0.08);
+  }
+
+  .ball-icon::before, .ball-icon::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 2px;
+    background: var(--red);
+    border-radius: 2px;
+  }
+  .ball-icon::before { top: 7px; left: 4px; transform: rotate(35deg); box-shadow: 0 2px 0 var(--red); }
+  .ball-icon::after { bottom: 7px; right: 4px; transform: rotate(35deg); box-shadow: 0 -2px 0 var(--red); }
+
+  .title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--yellow);
+    font-weight: 500;
+    margin-left: 36px;
+  }
+
+  /* Tab Bar */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-top: 12px;
+    background: rgba(0,0,0,0.25);
+    border-radius: 8px;
+    padding: 3px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 9px 6px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(245, 239, 224, 0.6);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .tab.active {
+    background: var(--red);
+    color: var(--cream);
+    box-shadow: 0 2px 6px rgba(200, 55, 45, 0.4);
+  }
+
+  /* Main */
+  main {
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+
+  .view { display: none; animation: fadeIn 0.25s ease; }
+  .view.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Session Cards (Today view) */
+  .date-card {
+    background: var(--paper);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 2px 8px var(--shadow);
+    border: 1px solid var(--line);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .date-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--red);
+    z-index: 1;
+  }
+
+  /* ── アコーディオン ヘッダー行 ── */
+  .card-summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 12px 12px 16px;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .card-summary:active { background: rgba(0,0,0,0.03); }
+
+  .date-col {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    min-width: 70px;
+  }
+
+  .date-main {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    line-height: 1;
+  }
+
+  .date-day {
+    font-size: 12px;
+    color: var(--navy-2);
+    font-weight: 500;
+  }
+
+  .count-badge {
+    background: var(--navy);
+    color: var(--yellow);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  .count-badge .num { font-size: 18px; color: var(--cream); }
+
+  /* 折りたたみ時：参加者名サマリー */
+  .summary-names {
+    flex: 1;
+    font-size: 11px;
+    color: var(--navy-2);
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* ヘッダー右端のアクションボタン群 */
+  .card-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .chevron {
+    font-size: 14px;
+    color: var(--navy-2);
+    opacity: 0.5;
+    transition: transform 0.25s;
+    line-height: 1;
+    padding: 4px;
+  }
+
+  .date-card.open .chevron { transform: rotate(180deg); }
+
+  /* ── 展開エリア ── */
+  .card-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .date-card.open .card-body {
+    max-height: 1200px;
+  }
+
+  .card-body-inner {
+    padding: 0 12px 14px 16px;
+    border-top: 1px solid var(--line);
+  }
+
+  /* 旧 .date-header は不要になるが念のため残す */
+  .date-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 14px;
+    padding-left: 6px;
+  }
+
+  .date-info {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  /* Player chips */
+  .player-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    margin: 12px 0;
+  }
+
+  .player-chip {
+    background: var(--cream);
+    border: 2px solid var(--line);
+    border-radius: 10px;
+    padding: 10px 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--navy-2);
+    position: relative;
+    user-select: none;
+    min-height: 56px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .player-chip:active { transform: scale(0.95); }
+
+  .player-chip.present {
+    background: var(--green);
+    color: var(--cream);
+    border-color: var(--green);
+    box-shadow: 0 2px 6px rgba(45, 122, 62, 0.35);
+  }
+
+  .player-chip.present::after {
+    content: '✓';
+    position: absolute;
+    top: 2px;
+    right: 6px;
+    font-size: 12px;
+    color: var(--yellow);
+    font-weight: 900;
+  }
+
+  .player-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    opacity: 0.7;
+    margin-bottom: 2px;
+  }
+
+  .player-name {
+    font-size: 13px;
+    line-height: 1.1;
+  }
+
+  /* Comment input */
+  .comment-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+
+  .comment-input {
+    flex: 1;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--navy);
+  }
+
+  .comment-input:focus { outline: 2px solid var(--red); outline-offset: -1px; }
+
+  /* Add session button */
+  .add-btn {
+    background: var(--red);
+    color: var(--cream);
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    width: 100%;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(200, 55, 45, 0.3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    letter-spacing: 0.5px;
+  }
+
+  .add-btn:active { transform: translateY(1px); }
+  .add-btn .plus { font-size: 22px; line-height: 1; }
+
+  /* Stats view */
+  .stats-header {
+    background: var(--navy);
+    color: var(--cream);
+    border-radius: 14px;
+    padding: 18px;
+    margin-bottom: 16px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stats-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      repeating-linear-gradient(45deg, transparent 0 10px, rgba(244, 196, 48, 0.04) 10px 11px);
+  }
+
+  .stats-label {
+    font-size: 11px;
+    letter-spacing: 4px;
+    color: var(--yellow);
+    margin-bottom: 4px;
+    position: relative;
+  }
+
+  .stats-big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 56px;
+    line-height: 1;
+    letter-spacing: 2px;
+    position: relative;
+  }
+
+  .stats-sub {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-top: 4px;
+    position: relative;
+  }
+
+  .section-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--navy);
+    margin: 20px 4px 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--navy);
+    opacity: 0.15;
+  }
+
+  /* ===== アコーディオンセクション ===== */
+  .acc-section { margin-bottom: 4px; }
+
+  .acc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding: 6px 4px;
+  }
+
+  .acc-header:active { opacity: 0.7; }
+
+  .acc-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    letter-spacing: 3px;
+    color: var(--navy);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+  }
+
+  .acc-title::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: var(--navy);
+    opacity: 0.15;
+  }
+
+  .acc-chevron {
+    font-size: 13px;
+    color: var(--navy);
+    opacity: 0.4;
+    transition: transform 0.25s;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+
+  .acc-section.open .acc-chevron { transform: rotate(180deg); }
+
+  .acc-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+  }
+
+  .acc-section.open .acc-body { max-height: 9999px; }
+
+  /* history-rowを4列に拡張 */
+  .history-row {
+    grid-template-columns: auto 1fr auto auto;
+  }
+
+  .hist-fee {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--red);
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  .hist-fee.zero { color: var(--navy); opacity: 0.3; }
+  .fee-tabs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .fee-tab {
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1.5px solid var(--navy);
+    background: transparent;
+    color: var(--navy);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: all 0.15s;
+  }
+
+  .fee-tab.active {
+    background: var(--navy);
+    color: var(--yellow);
+    opacity: 1;
+  }
+
+  .fee-summary-card {
+    background: var(--navy);
+    color: var(--cream);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .fee-summary-card::before {
+    content: '¥';
+    position: absolute;
+    right: 14px;
+    top: -4px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    opacity: 0.06;
+    color: var(--yellow);
+    pointer-events: none;
+  }
+
+  .fee-summary-left { position: relative; }
+  .fee-summary-label { font-size: 10px; letter-spacing: 3px; color: var(--yellow); margin-bottom: 2px; }
+  .fee-summary-sessions { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+  .fee-total-amount {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 1px;
+    line-height: 1;
+    position: relative;
+  }
+
+  .fee-list {
+    background: var(--paper);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    margin-bottom: 16px;
+  }
+
+  .fee-row {
+    display: grid;
+    grid-template-columns: 38px 1fr auto auto;
+    align-items: center;
+    padding: 11px 14px;
+    gap: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .fee-row:last-child { border-bottom: none; }
+
+  .fee-pnum {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--navy-2);
+    text-align: center;
+    opacity: 0.6;
+  }
+
+  .fee-name { font-weight: 700; font-size: 14px; }
+
+  .fee-sessions {
+    font-size: 11px;
+    color: var(--navy-2);
+    opacity: 0.6;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .fee-amount {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--red);
+    text-align: right;
+    white-space: nowrap;
+    min-width: 72px;
+  }
+
+  .fee-amount.zero { color: var(--navy); opacity: 0.25; }
+
+  .fee-setting {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .fee-setting label { font-size: 13px; font-weight: 700; flex: 1; }
+
+  .fee-setting input {
+    width: 90px;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 14px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    color: var(--navy);
+    background: var(--cream);
+    text-align: right;
+  }
+
+  .fee-setting span { font-size: 13px; opacity: 0.6; }
+    background: var(--paper);
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+
+  .rank-row {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    padding: 12px 14px;
+    gap: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .rank-row:last-child { border-bottom: none; }
+
+  .rank-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--navy-2);
+    text-align: center;
+  }
+
+  .rank-row:nth-child(1) .rank-num { color: var(--red); }
+  .rank-row:nth-child(2) .rank-num { color: #c89a3a; }
+  .rank-row:nth-child(3) .rank-num { color: #8b7355; }
+
+  .rank-name {
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .rank-name .pnum {
+    font-family: 'Oswald', sans-serif;
+    color: var(--navy-2);
+    opacity: 0.6;
+    font-size: 12px;
+    margin-right: 6px;
+  }
+
+  .rank-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .rank-bar {
+    width: 60px;
+    height: 6px;
+    background: var(--cream);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .rank-bar-fill {
+    height: 100%;
+    background: var(--red);
+    border-radius: 3px;
+    transition: width 0.4s;
+  }
+
+  .rank-count {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    min-width: 30px;
+    text-align: right;
+  }
+
+  .rank-pct {
+    font-size: 10px;
+    color: var(--navy-2);
+    opacity: 0.6;
+  }
+
+  /* History */
+  .history-row {
+    background: var(--paper);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    display: grid;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .hist-date {
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+  }
+
+  .hist-comment {
+    font-size: 12px;
+    color: var(--navy-2);
+    opacity: 0.75;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hist-count {
+    background: var(--navy);
+    color: var(--yellow);
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+
+  /* Roster */
+  .roster-row {
+    background: var(--paper);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    border: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .roster-num-input {
+    width: 36px;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+    padding: 6px 4px;
+    font-family: 'Oswald', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    text-align: center;
+    color: var(--navy);
+  }
+
+  .roster-name-input {
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--navy);
+    width: 100%;
+  }
+
+  .roster-num-input:focus, .roster-name-input:focus, .comment-input:focus {
+    outline: none;
+    border-color: var(--red);
+  }
+
+  .del-btn {
+    background: transparent;
+    border: none;
+    color: var(--red);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px 8px;
+    line-height: 1;
+  }
+
+  /* Empty state */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--navy-2);
+    opacity: 0.5;
+  }
+
+  .empty-icon { font-size: 40px; margin-bottom: 8px; }
+  .empty-text { font-size: 13px; }
+
+  /* Date picker modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(13, 27, 42, 0.6);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 20px;
+  }
+
+  .modal-backdrop.show { display: flex; animation: fadeIn 0.2s; }
+
+  .modal {
+    background: var(--cream);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 320px;
+    border: 3px solid var(--navy);
+  }
+
+  .modal h3 {
+    margin: 0 0 14px;
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 2px;
+    font-size: 18px;
+  }
+
+  .modal input[type="date"] {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    background: var(--paper);
+    font-size: 16px;
+    font-family: inherit;
+    color: var(--navy);
+    margin-bottom: 14px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .modal-btn {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .btn-cancel { background: var(--line); color: var(--navy); }
+  .btn-confirm { background: var(--red); color: var(--cream); }
+
+  /* Backup section */
+  .backup-card {
+    background: var(--paper);
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid var(--line);
+    margin-top: 8px;
+  }
+
+  .backup-desc {
+    font-size: 12px;
+    color: var(--navy-2);
+    opacity: 0.75;
+    margin: 0 0 12px;
+    line-height: 1.6;
+  }
+
+  .backup-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .backup-btn {
+    flex: 1;
+    border: none;
+    border-radius: 10px;
+    padding: 12px 8px;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    letter-spacing: 0.5px;
+  }
+
+  .backup-btn:active { transform: translateY(1px); }
+
+  .backup-btn.export {
+    background: var(--navy);
+    color: var(--cream);
+  }
+
+  .backup-btn.import {
+    background: var(--yellow);
+    color: var(--navy);
+  }
+
+  .bicon {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+  }
+
+  /* LINE share button */
+  .line-btn {
+    background: #06C755;
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    width: 100%;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(6, 199, 85, 0.3);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.5px;
+  }
+
+  .line-btn:active { transform: translateY(1px); }
+
+  .line-icon {
+    width: 22px;
+    height: 22px;
+    background: #fff;
+    border-radius: 6px;
+    color: #06C755;
+    font-weight: 900;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: -0.5px;
+  }
+
+  /* Small line button inside session card */
+  .card-line-btn {
+    background: #06C755;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    letter-spacing: 0.3px;
+  }
+
+  .card-line-btn:active { transform: translateY(1px); }
+
+  .card-line-btn .line-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 9px;
+  }
+
+  /* Share scope selector */
+  .share-scope {
+    background: var(--paper);
+    border-radius: 14px;
+    padding: 14px;
+    margin-bottom: 12px;
+    border: 1px solid var(--line);
+  }
+
+  .share-scope-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    font-weight: 700;
+    color: var(--navy-2);
+    opacity: 0.7;
+    margin-bottom: 8px;
+  }
+
+  .scope-options {
+    display: flex;
+    gap: 6px;
+  }
+
+  .scope-btn {
+    flex: 1;
+    background: var(--cream);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    color: var(--navy-2);
+    cursor: pointer;
+  }
+
+  .scope-btn.active {
+    background: var(--navy);
+    color: var(--cream);
+    border-color: var(--navy);
+  }
+
+  /* Preview modal */
+  .preview-text {
+    width: 100%;
+    min-height: 200px;
+    max-height: 50vh;
+    background: var(--paper);
+    border: 1.5px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--navy);
+    resize: vertical;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+  }
+
+  /* Footer below text helper */
+  .preview-help {
+    font-size: 11px;
+    color: var(--navy-2);
+    opacity: 0.65;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
+
+  .modal.modal-wide { max-width: 360px; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--navy);
+    color: var(--cream);
+    padding: 10px 18px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s;
+    z-index: 300;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-top">
+    <div class="ball-icon"></div>
+    <div>
+      <div class="title">NIGHTER ROSTER</div>
+    </div>
+  </div>
+  <div class="subtitle">少年野球 ナイター参加集計</div>
+  <div class="tabs">
+    <button class="tab active" data-tab="sessions">記録</button>
+    <button class="tab" data-tab="stats">集計</button>
+    <button class="tab" data-tab="roster">選手</button>
+  </div>
+</header>
+
+<main>
+  <!-- Sessions view -->
+  <section class="view active" id="view-sessions">
+    <button class="add-btn" id="addSessionBtn">
+      <span class="plus">+</span> 新しいナイターを記録
+    </button>
+    <div id="sessionList"></div>
+  </section>
+
+  <!-- Stats view -->
+  <section class="view" id="view-stats">
+    <div class="share-scope">
+      <div class="share-scope-label">LINEで送る範囲</div>
+      <div class="scope-options">
+        <button class="scope-btn active" data-scope="all">全期間</button>
+        <button class="scope-btn" data-scope="month">今月</button>
+        <button class="scope-btn" data-scope="last">直近1回</button>
+      </div>
+    </div>
+
+    <button class="line-btn" id="shareLineBtn">
+      <span class="line-icon">L</span> LINEで集計結果を送る
+    </button>
+
+    <div class="stats-header">
+      <div class="stats-label">TOTAL SESSIONS</div>
+      <div class="stats-big" id="totalSessions">0</div>
+      <div class="stats-sub" id="avgAttendance">平均参加 0.0人</div>
+    </div>
+
+    <div class="acc-section open" id="acc-ranking">
+      <div class="acc-header" data-acc="ranking">
+        <div class="acc-title">RANKING</div>
+        <span class="acc-chevron">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="rank-list" id="rankList"></div>
+      </div>
+    </div>
+
+    <div class="acc-section open" id="acc-history">
+      <div class="acc-header" data-acc="history">
+        <div class="acc-title">HISTORY</div>
+        <span class="acc-chevron">▼</span>
+      </div>
+      <div class="acc-body">
+        <div id="historyList"></div>
+      </div>
+    </div>
+
+    <div class="acc-section open" id="acc-fee">
+      <div class="acc-header" data-acc="fee">
+        <div class="acc-title">MONTHLY FEE</div>
+        <span class="acc-chevron">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="fee-setting">
+          <label>ナイター使用料金</label>
+          <input type="number" id="feePerSession" value="3250" min="0" step="100" inputmode="numeric">
+          <span>円 / 回</span>
+        </div>
+        <div class="fee-tabs" id="feeTabs"></div>
+        <div id="feeContent"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- Roster view -->
+  <section class="view" id="view-roster">
+    <button class="add-btn" id="addPlayerBtn">
+      <span class="plus">+</span> 選手を追加
+    </button>
+    <div id="rosterList"></div>
+
+    <div class="section-title">SHARE</div>
+    <div class="backup-card">
+      <p class="backup-desc">URLを送るだけで選手リストと記録を共有できます。受け取った相手がURLを開くと自動で読み込めます。</p>
+      <button class="backup-btn export" id="urlShareBtn" style="width:100%;margin-bottom:0;border-radius:10px;padding:13px 8px;font-size:14px;">
+        <span class="bicon">🔗</span> URLで共有する
+      </button>
+    </div>
+
+    <div class="section-title">APP ICON</div>
+    <div class="backup-card">
+      <p class="backup-desc">ホーム画面に追加したときのアイコン絵文字を変えられます。変更後にホーム画面へ追加してください。</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <canvas id="iconPreview" width="72" height="72" style="border-radius:16px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.2)"></canvas>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;margin-bottom:6px;">絵文字を選ぶ</div>
+          <div id="iconEmojiGrid" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="iconCustomEmoji" type="text" placeholder="直接入力（例：🏆）" maxlength="2"
+          style="flex:1;border:1.5px solid var(--line);border-radius:8px;padding:8px 12px;font-size:20px;background:var(--cream);color:var(--navy);">
+        <button class="backup-btn export" id="iconApplyBtn" style="flex-shrink:0;padding:9px 16px;border-radius:8px;font-size:13px;margin:0">
+          適用
+        </button>
+      </div>
+    </div>
+
+    <div class="section-title">BACKUP</div>
+    <div class="backup-card">
+      <p class="backup-desc">ファイルに保存して他のコーチやスマホと共有できます。</p>
+      <div class="backup-actions">
+        <button class="backup-btn export" id="exportBtn">
+          <span class="bicon">↓</span> エクスポート
+        </button>
+        <button class="backup-btn import" id="importBtn">
+          <span class="bicon">↑</span> インポート
+        </button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" style="display:none">
+    </div>
+  </section>
+</main>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3>ナイター日付</h3>
+    <input type="date" id="datePicker">
+    <div class="modal-actions">
+      <button class="modal-btn btn-cancel" id="modalCancel">キャンセル</button>
+      <button class="modal-btn btn-confirm" id="modalConfirm">追加</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share preview modal -->
+<div class="modal-backdrop" id="shareModal">
+  <div class="modal modal-wide">
+    <h3>送信プレビュー</h3>
+    <textarea class="preview-text" id="previewText"></textarea>
+    <div class="preview-help">
+      編集してから送信できます。「LINEで開く」を押すとLINEアプリの送信先選択画面が開きます。
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn btn-cancel" id="shareCopy">コピー</button>
+      <button class="modal-btn btn-confirm" id="shareOpen" style="background:#06C755">LINEで開く</button>
+    </div>
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="modal-btn btn-cancel" id="shareClose" style="flex:1">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- URL Share modal -->
+<div class="modal-backdrop" id="urlModal">
+  <div class="modal modal-wide">
+    <h3>🔗 URLで共有</h3>
+    <p style="font-size:12px;margin:0 0 10px;opacity:0.7;line-height:1.6;">
+      下のURLをコピーして送ってください。<br>受け取った相手がURLを開くと記録を取り込めます。
+    </p>
+    <textarea class="preview-text" id="shareUrlText" style="min-height:80px;word-break:break-all;" readonly></textarea>
+    <div class="preview-help" id="urlSizeWarn"></div>
+    <div class="modal-actions">
+      <button class="modal-btn btn-confirm" id="urlCopyBtn">コピー</button>
+    </div>
+    <div class="modal-actions" style="margin-top:8px">
+      <button class="modal-btn btn-cancel" id="urlModalClose" style="flex:1">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ===== State =====
+  const STORAGE_KEY = 'baseball_nighter_v4';
+  let state = {
+    players: [
+      // 6年
+      { id: 'p10', num: '10', name: '増田 旭飛' },
+      // 5年
+      { id: 'p06', num: '6',  name: '杉山 功樹' },
+      { id: 'p11', num: '11', name: '阿部 湊佑' },
+      { id: 'p03', num: '3',  name: '内田 匠海' },
+      { id: 'p04', num: '4',  name: '森 奏磨' },
+      { id: 'p02', num: '2',  name: '藁科 朝陽' },
+      { id: 'p08', num: '8',  name: '岩立 一希' },
+      { id: 'p05', num: '5',  name: '梶田 晄生' },
+      { id: 'p00', num: '0',  name: '櫻井 ひなた' },
+      { id: 'p12', num: '12', name: '中島 春馬' },
+      { id: 'p07', num: '7',  name: '松葉 令' },
+      { id: 'p01', num: '1',  name: '久保 椋孔' },
+      // 4年
+      { id: 'p13', num: '13', name: '渡辺 碧真' },
+      { id: 'p14', num: '14', name: '鈴木 湊' },
+      { id: 'p15', num: '15', name: '新木 斗翔' },
+      // 3年
+      { id: 'p16', num: '16', name: '飯島 拳生' },
+      { id: 'p17', num: '17', name: '前市岡 柊友' },
+      { id: 'p18', num: '18', name: '伊藤 毅' },
+      { id: 'p19', num: '19', name: '秋山 蒼太' },
+      { id: 'p20', num: '20', name: '児玉 湊大' },
+      { id: 'p21', num: '21', name: '結城 大輝' },
+      { id: 'p22', num: '22', name: '齊藤 優晟' },
+      { id: 'p23', num: '23', name: '吉田 晴陽' },
+      // 1年
+      { id: 'p24', num: '',   name: '杉村 椿' },
+      { id: 'p25', num: '',   name: '中島 優馬' },
+    ],
+    sessions: []
+    // session: { id, date, presentIds: [], comment }
+  };
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch (e) {}
+    // データ破損対策：presentIds / comment が欠けている記録があっても
+    // 一覧描画が全体的に止まらないよう、読み込み時に補完しておく
+    if (Array.isArray(state.sessions)) {
+      state.sessions.forEach(s => {
+        if (!Array.isArray(s.presentIds)) s.presentIds = [];
+        if (typeof s.comment !== 'string') s.comment = '';
+      });
+    }
+  }
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  // ===== URL Share =====
+  // データをBase64エンコードしてURLハッシュに乗せる
+  function encodeState(s) {
+    try {
+      const json = JSON.stringify(s);
+      return btoa(encodeURIComponent(json).replace(/%([0-9A-F]{2})/g, (_, p1) =>
+        String.fromCharCode('0x' + p1)));
+    } catch (e) { return null; }
+  }
+
+  function decodeState(b64) {
+    try {
+      const json = decodeURIComponent(Array.from(atob(b64)).map(c =>
+        '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+      return JSON.parse(json);
+    } catch (e) { return null; }
+  }
+
+  function buildShareUrl() {
+    const encoded = encodeState(state);
+    if (!encoded) return null;
+    const base = location.href.split('#')[0];
+    return `${base}#data=${encoded}`;
+  }
+
+  // URLハッシュにデータがあれば読み込みを促す
+  function checkUrlData() {
+    const hash = location.hash;
+    if (!hash.startsWith('#data=')) return;
+    const encoded = hash.slice(6);
+    const imported = decodeState(encoded);
+    if (!imported || !Array.isArray(imported.players) || !Array.isArray(imported.sessions)) return;
+
+    // ハッシュをすぐ消す（URLを綺麗にする）
+    history.replaceState(null, '', location.pathname + location.search);
+
+    const msg =
+      `共有データが見つかりました。読み込みますか？\n\n` +
+      `📋 内容\n` +
+      `・選手 ${imported.players.length}人\n` +
+      `・記録 ${imported.sessions.length}件\n\n` +
+      `OK：今のデータに統合\nキャンセル：無視`;
+    if (!confirm(msg)) return;
+
+    // マージ
+    const mergedPlayers = [...state.players];
+    imported.players.forEach(np => {
+      const idx = mergedPlayers.findIndex(p => p.id === np.id);
+      if (idx >= 0) mergedPlayers[idx] = np; else mergedPlayers.push(np);
+    });
+    const mergedSessions = [...state.sessions];
+    imported.sessions.forEach(ns => {
+      if (!Array.isArray(ns.presentIds)) ns.presentIds = [];
+      if (typeof ns.comment !== 'string') ns.comment = '';
+      const idx = mergedSessions.findIndex(s => s.id === ns.id);
+      if (idx >= 0) mergedSessions[idx] = ns; else mergedSessions.push(ns);
+    });
+    state.players = mergedPlayers;
+    state.sessions = mergedSessions;
+    save();
+    renderSessions();
+    renderRoster();
+    toast('✅ 共有データを読み込みました');
+  }
+
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    const days = ['日','月','火','水','木','金','土'];
+    return { m: d.getMonth() + 1, d: d.getDate(), wd: days[d.getDay()] };
+  }
+
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ===== Tabs =====
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      document.getElementById('view-' + tab.dataset.tab).classList.add('active');
+      if (tab.dataset.tab === 'stats') renderStats();
+      if (tab.dataset.tab === 'roster') renderRoster();
+    });
+  });
+
+  // ===== Sessions render =====
+  // openSessions: Set of session IDs currently expanded
+  const openSessions = new Set();
+
+  function renderSessions() {
+    const list = document.getElementById('sessionList');
+    if (state.sessions.length === 0) {
+      list.innerHTML = `
+        <div class="empty">
+          <div class="empty-icon">⚾</div>
+          <div class="empty-text">まだ記録がありません<br>上のボタンから追加してください</div>
+        </div>`;
+      return;
+    }
+
+    // Sort by date desc
+    const sorted = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
+
+    // 最新1件は自動で開く（まだ openSessions に入っていなければ）
+    if (sorted.length > 0 && !openSessions.has('__init_done__')) {
+      openSessions.add(sorted[0].id);
+      openSessions.add('__init_done__');
+    }
+
+    list.innerHTML = sorted.map(s => {
+      const f = fmtDate(s.date);
+      const isOpen = openSessions.has(s.id);
+
+      // 参加者名サマリー（折りたたみ時に表示）
+      const presentPlayers = state.players.filter(p => s.presentIds.includes(p.id));
+      let namesText = '';
+      if (presentPlayers.length === 0) {
+        namesText = 'まだ未入力';
+      } else if (presentPlayers.length <= 3) {
+        namesText = presentPlayers.map(p => p.name.split(' ').pop()).join('・');
+      } else {
+        const shown = presentPlayers.slice(0, 3).map(p => p.name.split(' ').pop()).join('・');
+        namesText = `${shown} 他${presentPlayers.length - 3}人`;
+      }
+      if (s.comment) namesText = `📝${s.comment}`;
+
+      const chips = state.players.map(p => {
+        const on = s.presentIds.includes(p.id);
+        return `<div class="player-chip ${on ? 'present' : ''}" data-sid="${s.id}" data-pid="${p.id}">
+          <div class="player-num">#${escapeHtml(p.num)}</div>
+          <div class="player-name">${escapeHtml(p.name)}</div>
+        </div>`;
+      }).join('');
+
+      return `<div class="date-card ${isOpen ? 'open' : ''}" data-card-id="${s.id}">
+        <div class="card-summary" data-toggle="${s.id}">
+          <div class="date-col">
+            <div class="date-main">${f.m}/${f.d}</div>
+            <div class="date-day">(${f.wd})</div>
+          </div>
+          <div class="count-badge"><span class="num">${s.presentIds.length}</span>/${state.players.length}</div>
+          <div class="summary-names">${escapeHtml(namesText)}</div>
+          <div class="card-actions">
+            <button class="card-line-btn" data-share-session="${s.id}" title="LINEで送る">
+              <span class="line-icon">L</span>送る
+            </button>
+            <button class="del-btn" data-del-session="${s.id}" title="削除">×</button>
+          </div>
+          <div class="chevron">▼</div>
+        </div>
+        <div class="card-body">
+          <div class="card-body-inner">
+            <div class="player-grid">${chips || '<div class="empty-text">選手を登録してください</div>'}</div>
+            <div class="comment-row">
+              <input class="comment-input" data-sid="${s.id}" placeholder="メモ（雨天中止、紅白戦など）" value="${escapeHtml(s.comment || '')}">
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+
+    // アコーディオン開閉
+    list.querySelectorAll('[data-toggle]').forEach(el => {
+      el.addEventListener('click', e => {
+        // ボタンのクリックは開閉しない
+        if (e.target.closest('button')) return;
+        const sid = el.dataset.toggle;
+        const card = list.querySelector(`[data-card-id="${sid}"]`);
+        if (!card) return;
+        if (openSessions.has(sid)) {
+          openSessions.delete(sid);
+          card.classList.remove('open');
+        } else {
+          openSessions.add(sid);
+          card.classList.add('open');
+        }
+      });
+    });
+
+    // Player chip toggle
+    list.querySelectorAll('.player-chip').forEach(chip => {
+      chip.addEventListener('click', () => toggleAttend(chip.dataset.sid, chip.dataset.pid));
+    });
+
+    // Comment input
+    list.querySelectorAll('.comment-input').forEach(inp => {
+      inp.addEventListener('input', e => {
+        const s = state.sessions.find(x => x.id === inp.dataset.sid);
+        if (s) { s.comment = e.target.value; save(); }
+      });
+    });
+
+    // Delete
+    list.querySelectorAll('[data-del-session]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm('この日のナイター記録を削除しますか？')) {
+          openSessions.delete(btn.dataset.delSession);
+          state.sessions = state.sessions.filter(s => s.id !== btn.dataset.delSession);
+          save();
+          renderSessions();
+          toast('削除しました');
+        }
+      });
+    });
+
+    // LINE share
+    list.querySelectorAll('[data-share-session]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const s = state.sessions.find(x => x.id === btn.dataset.shareSession);
+        if (s) openShareModal(buildSessionText(s));
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function toggleAttend(sid, pid) {
+    const s = state.sessions.find(x => x.id === sid);
+    if (!s) return;
+    const idx = s.presentIds.indexOf(pid);
+    if (idx >= 0) s.presentIds.splice(idx, 1);
+    else s.presentIds.push(pid);
+    save();
+    renderSessions();
+  }
+
+  // ===== Add session modal =====
+  const modal = document.getElementById('modal');
+  document.getElementById('addSessionBtn').addEventListener('click', () => {
+    const today = new Date();
+    const iso = today.toISOString().split('T')[0];
+    document.getElementById('datePicker').value = iso;
+    modal.classList.add('show');
+  });
+  document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('show'));
+  document.getElementById('modalConfirm').addEventListener('click', () => {
+    const date = document.getElementById('datePicker').value;
+    if (!date) return;
+    if (state.sessions.some(s => s.date === date)) {
+      toast('この日はすでに記録があります');
+      modal.classList.remove('show');
+      return;
+    }
+    const newId = uid();
+    state.sessions.push({ id: newId, date, presentIds: [], comment: '' });
+    openSessions.add(newId);
+    save();
+    renderSessions();
+    modal.classList.remove('show');
+    toast('追加しました');
+  });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('show'); });
+
+  // ===== Stats =====
+  function renderStats() {
+    const total = state.sessions.length;
+    document.getElementById('totalSessions').textContent = total;
+    const totalAttend = state.sessions.reduce((a, s) => a + s.presentIds.length, 0);
+    const avg = total > 0 ? (totalAttend / total).toFixed(1) : '0.0';
+    document.getElementById('avgAttendance').textContent = `平均参加 ${avg}人`;
+
+    // Ranking
+    const counts = state.players.map(p => ({
+      p,
+      count: state.sessions.filter(s => s.presentIds.includes(p.id)).length
+    })).sort((a, b) => b.count - a.count);
+
+    const maxCount = Math.max(1, ...counts.map(c => c.count));
+    const rankList = document.getElementById('rankList');
+
+    if (counts.length === 0) {
+      rankList.innerHTML = '<div class="empty"><div class="empty-text">選手を登録してください</div></div>';
+    } else {
+      rankList.innerHTML = counts.map((c, i) => {
+        const pct = total > 0 ? Math.round(c.count / total * 100) : 0;
+        const w = (c.count / maxCount) * 100;
+        return `<div class="rank-row">
+          <div class="rank-num">${i + 1}</div>
+          <div class="rank-name"><span class="pnum">#${escapeHtml(c.p.num)}</span>${escapeHtml(c.p.name)}</div>
+          <div class="rank-bar-wrap">
+            <div class="rank-bar"><div class="rank-bar-fill" style="width:${w}%"></div></div>
+            <div>
+              <div class="rank-count">${c.count}</div>
+              <div class="rank-pct">${pct}%</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // History
+    const histList = document.getElementById('historyList');
+    if (state.sessions.length === 0) {
+      histList.innerHTML = '<div class="empty"><div class="empty-text">記録がありません</div></div>';
+    } else {
+      const feePerSession = parseInt(document.getElementById('feePerSession').value) || 3250;
+      const sorted = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
+      histList.innerHTML = sorted.map(s => {
+        const f = fmtDate(s.date);
+        const n = s.presentIds.length;
+        const perPerson = n > 0 ? Math.round(feePerSession / n) : 0;
+        return `<div class="history-row">
+          <div class="hist-date">${f.m}/${f.d}<span style="font-size:11px;opacity:0.6;font-weight:500"> (${f.wd})</span></div>
+          <div class="hist-comment">${escapeHtml(s.comment) || '<span style="opacity:0.4">—</span>'}</div>
+          <div class="hist-count">${n}人</div>
+          <div class="hist-fee ${perPerson === 0 ? 'zero' : ''}">${perPerson > 0 ? '¥' + perPerson.toLocaleString() : '—'}</div>
+        </div>`;
+      }).join('');
+    }
+
+    renderFee();
+  }
+
+  // ===== 料金集計 =====
+  let currentFeeMonth = null;
+
+  function renderFee() {
+    const feePerSession = parseInt(document.getElementById('feePerSession').value) || 3250;
+
+    // 月リストを作成（降順）
+    const months = [...new Set(state.sessions.map(s => s.date.slice(0, 7)))]
+      .sort((a, b) => b.localeCompare(a));
+
+    const feeTabs = document.getElementById('feeTabs');
+    const feeContent = document.getElementById('feeContent');
+
+    if (months.length === 0) {
+      feeTabs.innerHTML = '';
+      feeContent.innerHTML = '<div class="empty"><div class="empty-text">記録がありません</div></div>';
+      return;
+    }
+
+    // 選択月をリセット（存在しない月が選ばれていたら最新月に）
+    if (!currentFeeMonth || !months.includes(currentFeeMonth)) {
+      currentFeeMonth = months[0];
+    }
+
+    // タブ描画
+    feeTabs.innerHTML = months.map(m => {
+      const [y, mo] = m.split('-');
+      return `<button class="fee-tab ${m === currentFeeMonth ? 'active' : ''}" data-month="${m}">${parseInt(mo)}月</button>`;
+    }).join('');
+
+    feeTabs.querySelectorAll('.fee-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentFeeMonth = btn.dataset.month;
+        renderFee();
+      });
+    });
+
+    // 選択月のセッション
+    const sessions = state.sessions.filter(s => s.date.startsWith(currentFeeMonth));
+    const totalFee = sessions.length * feePerSession;
+
+    // 選手ごとの参加セッションと負担額を計算
+    const playerFees = state.players.map(p => {
+      // 参加した各セッションで「その回の参加人数で割った額」を積み上げる
+      let amount = 0;
+      const joinedSessions = [];
+      sessions.forEach(s => {
+        if (s.presentIds.includes(p.id) && s.presentIds.length > 0) {
+          amount += Math.ceil(feePerSession / s.presentIds.length / 10) * 10;
+          joinedSessions.push(s);
+        }
+      });
+      return { p, amount, count: joinedSessions.length };
+    }).sort((a, b) => b.amount - a.amount || b.count - a.count);
+
+    const [y, mo] = currentFeeMonth.split('-');
+
+    feeContent.innerHTML = `
+      <div class="fee-summary-card">
+        <div class="fee-summary-left">
+          <div class="fee-summary-label">${parseInt(mo)}月 TOTAL</div>
+          <div class="fee-total-amount">¥${totalFee.toLocaleString()}</div>
+          <div class="fee-summary-sessions">${sessions.length}回 × ${feePerSession.toLocaleString()}円</div>
+        </div>
+      </div>
+      <div class="fee-list">
+        ${playerFees.length === 0
+          ? '<div class="empty"><div class="empty-text">選手を登録してください</div></div>'
+          : playerFees.map(({ p, amount, count }) => `
+            <div class="fee-row">
+              <div class="fee-pnum">#${escapeHtml(p.num)}</div>
+              <div class="fee-name">${escapeHtml(p.name)}</div>
+              <div class="fee-sessions">${count}回参加</div>
+              <div class="fee-amount ${amount === 0 ? 'zero' : ''}">
+                ${amount === 0 ? '—' : '¥' + amount.toLocaleString()}
+              </div>
+            </div>`).join('')
+        }
+      </div>
+      <button class="line-btn" id="feeLineBtn" style="margin-top:12px">
+        <span class="line-icon">L</span> ${parseInt(mo)}月の料金をLINEで送る
+      </button>`;
+
+    document.getElementById('feeLineBtn').addEventListener('click', () => {
+      openShareModal(buildFeeText(currentFeeMonth, sessions, playerFees, feePerSession));
+    });
+  }
+
+  function buildFeeText(ym, sessions, playerFees, feePerSession) {
+    const [y, mo] = ym.split('-');
+    const totalFee = sessions.length * feePerSession;
+    let txt = `⚾ ${parseInt(mo)}月 ナイター使用料\n`;
+    txt += `━━━━━━━━━━━━━━\n`;
+    txt += `${sessions.length}回開催 × ${feePerSession.toLocaleString()}円\n`;
+    txt += `月合計 ¥${totalFee.toLocaleString()}\n`;
+    txt += `━━━━━━━━━━━━━━\n`;
+    const participating = playerFees.filter(pf => pf.amount > 0);
+    const absent = playerFees.filter(pf => pf.amount === 0);
+    participating.forEach(({ p, amount, count }) => {
+      txt += `#${p.num} ${p.name}　${count}回　¥${amount.toLocaleString()}\n`;
+    });
+    if (absent.length > 0) {
+      txt += `─────────────\n`;
+      absent.forEach(({ p }) => {
+        txt += `#${p.num} ${p.name}　不参加\n`;
+      });
+    }
+    txt += `━━━━━━━━━━━━━━`;
+    return txt;
+  }
+
+  document.getElementById('feePerSession').addEventListener('input', () => renderStats());
+
+  // ===== アコーディオン開閉 =====
+  document.querySelectorAll('.acc-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const section = header.closest('.acc-section');
+      section.classList.toggle('open');
+    });
+  });
+
+  // ===== APP ICON =====
+  const ICON_PRESETS = ['⚾','🏆','🧢','⚡','🔥','🌙','🦁','🐯','🦅','🏅','📋','📊'];
+
+  function updateIconPreview(emoji) {
+    const canvas = document.getElementById('iconPreview');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const s = 72;
+    ctx.clearRect(0, 0, s, s);
+    ctx.fillStyle = '#0d1b2a';
+    const r = s * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(r,0); ctx.lineTo(s-r,0); ctx.quadraticCurveTo(s,0,s,r);
+    ctx.lineTo(s,s-r); ctx.quadraticCurveTo(s,s,s-r,s);
+    ctx.lineTo(r,s); ctx.quadraticCurveTo(0,s,0,s-r);
+    ctx.lineTo(0,r); ctx.quadraticCurveTo(0,0,r,0);
+    ctx.closePath(); ctx.fill();
+    ctx.font = `${s * 0.58}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(emoji, s/2, s/2 + s*0.03);
+  }
+
+  function initIconUI() {
+    const grid = document.getElementById('iconEmojiGrid');
+    if (!grid) return;
+    const current = getIconEmoji();
+    grid.innerHTML = ICON_PRESETS.map(e =>
+      `<button data-emoji="${e}" style="font-size:26px;background:${e===current?'var(--navy)':'var(--cream)'};border:2px solid ${e===current?'var(--yellow)':'var(--line)'};border-radius:10px;width:42px;height:42px;cursor:pointer;transition:all .15s">${e}</button>`
+    ).join('');
+    updateIconPreview(current);
+    document.getElementById('iconCustomEmoji').value = '';
+
+    grid.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const emoji = btn.dataset.emoji;
+        saveIconEmoji(emoji);
+        applyIcon(emoji);
+        updateIconPreview(emoji);
+        grid.querySelectorAll('button').forEach(b => {
+          const on = b.dataset.emoji === emoji;
+          b.style.background = on ? 'var(--navy)' : 'var(--cream)';
+          b.style.borderColor = on ? 'var(--yellow)' : 'var(--line)';
+        });
+        document.getElementById('iconCustomEmoji').value = '';
+        toast('アイコンを変更しました');
+      });
+    });
+
+    document.getElementById('iconApplyBtn').addEventListener('click', () => {
+      const val = document.getElementById('iconCustomEmoji').value.trim();
+      if (!val) { toast('絵文字を入力してください'); return; }
+      saveIconEmoji(val);
+      applyIcon(val);
+      updateIconPreview(val);
+      grid.querySelectorAll('button').forEach(b => {
+        b.style.background = 'var(--cream)'; b.style.borderColor = 'var(--line)';
+      });
+      toast('アイコンを変更しました');
+    });
+  }
+
+  // 選手タブが開かれたときにアイコンUIを初期化
+  document.querySelectorAll('.tab').forEach(tab => {
+    if (tab.dataset.tab === 'roster') {
+      tab.addEventListener('click', () => setTimeout(initIconUI, 50));
+    }
+  });
+
+  // ===== Roster =====
+  function renderRoster() {
+    const list = document.getElementById('rosterList');
+    if (state.players.length === 0) {
+      list.innerHTML = '<div class="empty"><div class="empty-icon">🧢</div><div class="empty-text">選手を追加してください</div></div>';
+      return;
+    }
+    list.innerHTML = state.players.map(p => `
+      <div class="roster-row">
+        <input class="roster-num-input" data-pid="${p.id}" data-field="num" value="${escapeHtml(p.num)}" maxlength="3" inputmode="numeric">
+        <input class="roster-name-input" data-pid="${p.id}" data-field="name" value="${escapeHtml(p.name)}" placeholder="選手名">
+        <button class="del-btn" data-del-player="${p.id}">×</button>
+      </div>
+    `).join('');
+
+    list.querySelectorAll('input').forEach(inp => {
+      inp.addEventListener('input', e => {
+        const p = state.players.find(x => x.id === inp.dataset.pid);
+        if (p) { p[inp.dataset.field] = e.target.value; save(); }
+      });
+    });
+    list.querySelectorAll('[data-del-player]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const p = state.players.find(x => x.id === btn.dataset.delPlayer);
+        if (!p) return;
+        if (confirm(`「${p.name}」を選手リストから削除しますか？\n過去の参加記録からも消えます。`)) {
+          state.players = state.players.filter(x => x.id !== btn.dataset.delPlayer);
+          state.sessions.forEach(s => {
+            s.presentIds = s.presentIds.filter(id => id !== btn.dataset.delPlayer);
+          });
+          save();
+          renderRoster();
+          toast('削除しました');
+        }
+      });
+    });
+  }
+
+  document.getElementById('addPlayerBtn').addEventListener('click', () => {
+    const nextNum = String(state.players.length + 1);
+    state.players.push({ id: uid(), num: nextNum, name: '' });
+    save();
+    renderRoster();
+    // Focus the new name input
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.roster-name-input');
+      if (inputs.length) inputs[inputs.length - 1].focus();
+    }, 50);
+  });
+
+  // ===== LINE Share =====
+  let currentScope = 'all';
+
+  document.querySelectorAll('.scope-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.scope-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentScope = btn.dataset.scope;
+    });
+  });
+
+  function buildSessionText(s) {
+    const f = fmtDate(s.date);
+    const present = state.players.filter(p => s.presentIds.includes(p.id));
+    const absent = state.players.filter(p => !s.presentIds.includes(p.id));
+    let txt = `⚾ナイター参加状況\n`;
+    txt += `${f.m}月${f.d}日(${f.wd})\n`;
+    txt += `参加 ${present.length}人 / 全${state.players.length}人\n`;
+    if (s.comment) txt += `📝 ${s.comment}\n`;
+    txt += `\n【参加】\n`;
+    txt += present.length ? present.map(p => `・#${p.num} ${p.name}`).join('\n') + '\n' : '（なし）\n';
+    if (absent.length) {
+      txt += `\n【欠席】\n`;
+      txt += absent.map(p => `・#${p.num} ${p.name}`).join('\n') + '\n';
+    }
+    return txt;
+  }
+
+  function getScopedSessions() {
+    const sorted = [...state.sessions].sort((a, b) => b.date.localeCompare(a.date));
+    if (currentScope === 'last') return sorted.slice(0, 1);
+    if (currentScope === 'month') {
+      const now = new Date();
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      return sorted.filter(s => s.date.startsWith(ym));
+    }
+    return sorted;
+  }
+
+  function buildSummaryText() {
+    const sessions = getScopedSessions();
+    if (sessions.length === 0) return '記録がありません';
+
+    const scopeLabel =
+      currentScope === 'last' ? '直近のナイター' :
+      currentScope === 'month' ? '今月のナイター集計' :
+      'ナイター集計';
+
+    let txt = `⚾${scopeLabel}\n`;
+
+    // Date range
+    if (sessions.length > 1) {
+      const dates = sessions.map(s => s.date).sort();
+      const fs = fmtDate(dates[0]);
+      const fe = fmtDate(dates[dates.length - 1]);
+      txt += `${fs.m}/${fs.d} 〜 ${fe.m}/${fe.d}\n`;
+    } else {
+      const f = fmtDate(sessions[0].date);
+      txt += `${f.m}月${f.d}日(${f.wd})\n`;
+    }
+
+    const totalAttend = sessions.reduce((a, s) => a + s.presentIds.length, 0);
+    const avg = (totalAttend / sessions.length).toFixed(1);
+    txt += `開催 ${sessions.length}回 / 平均 ${avg}人\n`;
+    txt += `━━━━━━━━━━━━\n`;
+
+    // If single session, show detail
+    if (sessions.length === 1) {
+      const s = sessions[0];
+      const present = state.players.filter(p => s.presentIds.includes(p.id));
+      const absent = state.players.filter(p => !s.presentIds.includes(p.id));
+      if (s.comment) txt += `📝 ${s.comment}\n\n`;
+      txt += `参加 ${present.length}人 / 全${state.players.length}人\n\n`;
+      txt += `【参加】\n`;
+      txt += present.length ? present.map(p => `・#${p.num} ${p.name}`).join('\n') + '\n' : '（なし）\n';
+      if (absent.length) {
+        txt += `\n【欠席】\n`;
+        txt += absent.map(p => `・#${p.num} ${p.name}`).join('\n') + '\n';
+      }
+      return txt;
+    }
+
+    // Multi-session: per-player count
+    txt += `【選手別 参加回数】\n`;
+    const counts = state.players.map(p => ({
+      p,
+      count: sessions.filter(s => s.presentIds.includes(p.id)).length
+    })).sort((a, b) => b.count - a.count);
+
+    counts.forEach(c => {
+      const pct = Math.round(c.count / sessions.length * 100);
+      txt += `・#${c.p.num} ${c.p.name}：${c.count}回 (${pct}%)\n`;
+    });
+
+    // Session list
+    txt += `\n【開催日】\n`;
+    sessions.forEach(s => {
+      const f = fmtDate(s.date);
+      const memo = s.comment ? ` ${s.comment}` : '';
+      txt += `・${f.m}/${f.d}(${f.wd}) ${s.presentIds.length}人${memo}\n`;
+    });
+
+    return txt;
+  }
+
+  const shareModal = document.getElementById('shareModal');
+  const previewText = document.getElementById('previewText');
+
+  function openShareModal(text) {
+    previewText.value = text;
+    shareModal.classList.add('show');
+  }
+
+  document.getElementById('shareLineBtn').addEventListener('click', () => {
+    if (state.sessions.length === 0) {
+      toast('記録がまだありません');
+      return;
+    }
+    openShareModal(buildSummaryText());
+  });
+
+  document.getElementById('shareClose').addEventListener('click', () => shareModal.classList.remove('show'));
+  shareModal.addEventListener('click', e => { if (e.target === shareModal) shareModal.classList.remove('show'); });
+
+  document.getElementById('shareCopy').addEventListener('click', async () => {
+    const text = previewText.value;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('コピーしました');
+    } catch (e) {
+      // fallback
+      previewText.select();
+      try {
+        document.execCommand('copy');
+        toast('コピーしました');
+      } catch (e2) {
+        toast('コピーできませんでした');
+      }
+    }
+  });
+
+  document.getElementById('shareOpen').addEventListener('click', async () => {
+    const text = previewText.value;
+    // Try Web Share API first (native share sheet, includes LINE on mobile)
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        shareModal.classList.remove('show');
+        return;
+      } catch (e) {
+        // user cancelled or not supported, fall through
+        if (e.name === 'AbortError') return;
+      }
+    }
+    // Fallback: LINE share URL scheme
+    const url = `https://line.me/R/share?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+    shareModal.classList.remove('show');
+  });
+
+  // ===== URL Share button =====
+  document.getElementById('urlShareBtn').addEventListener('click', () => {
+    const url = buildShareUrl();
+    if (!url) { toast('データの生成に失敗しました'); return; }
+    document.getElementById('shareUrlText').value = url;
+    const kb = Math.round(url.length / 1024 * 10) / 10;
+    const warn = document.getElementById('urlSizeWarn');
+    if (url.length > 8000) {
+      warn.textContent = `⚠️ URLが長め（約${kb}KB）です。LINEやメールで送ると途切れる場合はバックアップファイル方式をお試しください。`;
+    } else {
+      warn.textContent = `URLサイズ：約${kb}KB`;
+    }
+    document.getElementById('urlModal').classList.add('show');
+  });
+
+  document.getElementById('urlModalClose').addEventListener('click', () =>
+    document.getElementById('urlModal').classList.remove('show'));
+  document.getElementById('urlModal').addEventListener('click', e => {
+    if (e.target === document.getElementById('urlModal'))
+      document.getElementById('urlModal').classList.remove('show');
+  });
+
+  document.getElementById('urlCopyBtn').addEventListener('click', async () => {
+    const text = document.getElementById('shareUrlText').value;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('URLをコピーしました');
+    } catch {
+      document.getElementById('shareUrlText').select();
+      try { document.execCommand('copy'); toast('URLをコピーしました'); }
+      catch { toast('コピーできませんでした'); }
+    }
+  });
+
+  // ===== Backup (Export / Import) =====
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const data = {
+      _type: 'baseball_nighter_backup',
+      _version: 1,
+      _exportedAt: new Date().toISOString(),
+      players: state.players,
+      sessions: state.sessions
+    };
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const today = new Date();
+    const stamp = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+    const filename = `nighter_backup_${stamp}.json`;
+
+    // Try Web Share API with file (best on mobile - opens LINE/Mail directly)
+    if (navigator.canShare) {
+      try {
+        const file = new File([blob], filename, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: 'ナイター集計データ' })
+            .then(() => URL.revokeObjectURL(url))
+            .catch(err => {
+              if (err.name !== 'AbortError') downloadFallback(url, filename);
+              else URL.revokeObjectURL(url);
+            });
+          return;
+        }
+      } catch (e) { /* fall through */ }
+    }
+    downloadFallback(url, filename);
+  });
+
+  function downloadFallback(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast('保存しました');
+  }
+
+  document.getElementById('importBtn').addEventListener('click', () => {
+    document.getElementById('importFile').click();
+  });
+
+  document.getElementById('importFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!data || !Array.isArray(data.players) || !Array.isArray(data.sessions)) {
+          throw new Error('形式が違います');
+        }
+
+        // Build merge preview info
+        const newPlayerCount = data.players.filter(np =>
+          !state.players.some(p => p.id === np.id)
+        ).length;
+        const newSessionCount = data.sessions.filter(ns =>
+          !state.sessions.some(s => s.id === ns.id)
+        ).length;
+
+        const msg =
+          `読み込みますか？\n\n` +
+          `📋 ファイル内容\n` +
+          `・選手 ${data.players.length}人\n` +
+          `・記録 ${data.sessions.length}件\n\n` +
+          `OK：今のデータに統合（新しい${newPlayerCount}人 / ${newSessionCount}件を追加）\n` +
+          `キャンセル：何もしない`;
+
+        if (!confirm(msg)) {
+          e.target.value = '';
+          return;
+        }
+
+        // Merge: existing ids overwritten by imported (so edits sync)
+        const mergedPlayers = [...state.players];
+        data.players.forEach(np => {
+          const idx = mergedPlayers.findIndex(p => p.id === np.id);
+          if (idx >= 0) mergedPlayers[idx] = np;
+          else mergedPlayers.push(np);
+        });
+
+        const mergedSessions = [...state.sessions];
+        data.sessions.forEach(ns => {
+          if (!Array.isArray(ns.presentIds)) ns.presentIds = [];
+          if (typeof ns.comment !== 'string') ns.comment = '';
+          const idx = mergedSessions.findIndex(s => s.id === ns.id);
+          if (idx >= 0) mergedSessions[idx] = ns;
+          else mergedSessions.push(ns);
+        });
+
+        state.players = mergedPlayers;
+        state.sessions = mergedSessions;
+        save();
+        renderRoster();
+        renderSessions();
+        toast(`${newPlayerCount + newSessionCount}件 読み込みました`);
+      } catch (err) {
+        alert('読み込めませんでした。\nバックアップファイル(.json)を選んでください。');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ===== Init =====
+  load();
+  checkUrlData();
+  renderSessions();
+</script>
+
+</body>
+</html>
