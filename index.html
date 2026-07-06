@@ -1336,6 +1336,26 @@ document.addEventListener('DOMContentLoaded', () => applyIcon(getIconEmoji()));
 
 <div class="toast" id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  // ===== Firebase (みんなで共有するデータの保存先) =====
+  const firebaseConfig = {
+    apiKey: "AIzaSyCjwI20nKl9wI_7G14c6ZWZDpH5z26d9Ik",
+    authDomain: "nighter-roster-2fb2e.firebaseapp.com",
+    databaseURL: "https://nighter-roster-2fb2e-default-rtdb.firebaseio.com",
+    projectId: "nighter-roster-2fb2e",
+    storageBucket: "nighter-roster-2fb2e.firebasestorage.app",
+    messagingSenderId: "602319688410",
+    appId: "1:602319688410:web:d4470d10ae5dd08ea88be3"
+  };
+  let db = null;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+  } catch (e) { console.error('Firebase init failed', e); }
+</script>
+
 <script>
   // ===== State =====
   const STORAGE_KEY = 'baseball_nighter_v4';
@@ -1376,11 +1396,7 @@ document.addEventListener('DOMContentLoaded', () => applyIcon(getIconEmoji()));
     // session: { id, date, presentIds: [], comment }
   };
 
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) state = JSON.parse(raw);
-    } catch (e) {}
+  function normalizeState() {
     // データ破損対策：presentIds / comment が欠けている記録があっても
     // 一覧描画が全体的に止まらないよう、読み込み時に補完しておく
     if (Array.isArray(state.sessions)) {
@@ -1391,8 +1407,50 @@ document.addEventListener('DOMContentLoaded', () => applyIcon(getIconEmoji()));
     }
   }
 
+  let isApplyingRemoteState = false;
+
+  function applyRemoteState(remoteState) {
+    if (!remoteState) return;
+    const remoteJSON = JSON.stringify(remoteState);
+    const localJSON = JSON.stringify(state);
+    if (remoteJSON === localJSON) return; // 変化なしなら再描画しない（入力中のカーソル位置などを守るため）
+    isApplyingRemoteState = true;
+    state = remoteState;
+    normalizeState();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    renderRoster();
+    renderSessions();
+    isApplyingRemoteState = false;
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch (e) {}
+    normalizeState();
+
+    // Firebaseに接続できる場合は、以降ずっとリアルタイムで同期する
+    if (db) {
+      try {
+        db.ref('state').on('value', (snapshot) => {
+          const remote = snapshot.val();
+          if (remote) {
+            applyRemoteState(remote);
+          } else {
+            // まだFirebase側にデータが無い場合は、今のローカルデータで初期化する
+            save();
+          }
+        });
+      } catch (e) { console.error('Firebase sync failed', e); }
+    }
+  }
+
   function save() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    if (db && !isApplyingRemoteState) {
+      try { db.ref('state').set(state); } catch (e) { console.error('Firebase save failed', e); }
+    }
   }
 
   // ===== URL Share =====
